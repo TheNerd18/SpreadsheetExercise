@@ -1,11 +1,9 @@
 import {Cell} from "./Cell.js";
-let cols =50;
-let rows = 50;
+let cols =30;
+let rows = 30;
 
 let width = window.innerWidth;
 let height = window.innerHeight;
-console.log(innerHeight)
-console.log(innerWidth)
 
 let cells = [];
 
@@ -144,14 +142,20 @@ function highlightCell(e){
 }
 
 /**
- * Gets the cell below the selected cell
+ * Gets the cell from enter or tab click the selected cell
  * to make it the new selected cell
  */
-function selectCellBelow(){
+function selectCell(iteration){
   let index = cells.indexOf(selectedCell);
-  if (index+cols < cells.length){
-    selectedCell = cells[index+cols];
-    selectedCell.highlight(ctx);
+  let prev = selectedCell;
+  if (index+iteration < cells.length){
+    selectedCell = cells[index+iteration];
+    if(selectedCell.isClickable()){
+      selectedCell.highlight(ctx);
+    }
+    else{
+      selectedCell = prev;
+    }
   }
 }
 
@@ -180,7 +184,7 @@ function getCellsFromPos(cellPositions){
  * Applies basic operations to 2 different cells
  * @returns 
  */
-function applyOperations(){
+function applyOperation(){
   //Get all the cell positions in a single array in order
   let cellOrder = selectedCellVal.split(/[=,+,\-,*,/]+/); 
 
@@ -205,6 +209,75 @@ function applyOperations(){
     selectedCell.setCellValue("Error");
     return;
   }
+}
+
+/**
+ * Creates an array that pushes cells between the start and end cell
+ * @param {Cell} cell1 
+ * @param {Cell} cell2 
+ * @param {Boolean} isRow 
+ * @returns 
+ */
+function getCellsBetween(cell1, cell2, isRow){
+  let cellsBetween = [];
+  let index1 = cells.indexOf(cell1);
+  let index2 = cells.indexOf(cell2);
+  cellsBetween.push(cell1);
+  if (isRow){
+    for (let i = index1+1; i < index2; i++){
+      cellsBetween.push(cells[i]);
+    }
+  }
+  else{
+    for (let i = index1+cols; i < index2; i+=cols){
+      cellsBetween.push(cells[i]);
+    }
+  }
+  cellsBetween.push(cell2);
+  return cellsBetween;
+}
+
+function applyFunction(){
+  let functionCells = selectedCellVal.split(/[(,:,)]+/)
+
+  let functionOperator = functionCells[0]+"(";
+  //Should only be 4 elements in the array. E.g. [=sum, A1, A2 and ""]
+  if (functionCells.length >4){
+    selectedCell.setCellValue("Error");
+    return;
+  }
+
+  //Remove first and last element as they are not needed
+  functionCells.shift();
+  functionCells.pop();
+
+  //See if cells can be references
+  let cells = getCellsFromPos(functionCells);
+  try{
+    if ((cells[0].row != cells[1].row && cells[0].letter != cells[1].letter) || cells.length != 2){
+      selectedCell.setCellValue("Error");
+      return;
+    }
+  }
+  catch(error){
+    selectedCell.setCellValue("Error");
+    return;
+  }
+
+  //Checks if it needs row or colums
+  let isRow = false;
+  if (cells[0].row == cells[1].row){
+    isRow = true;
+  }
+
+  //Get cells between the 2 cells
+  let cellsBetween = getCellsBetween(cells[0], cells[1], isRow);
+  if (cellsBetween.length == 0 || cellsBetween.includes(selectedCell)){
+    selectedCell.setCellValue("Error");
+    return;
+  }
+
+  selectedCell.applyFunction(cellsBetween, functionOperator);
 }
 
 /**
@@ -236,11 +309,11 @@ function arrayStartsWith(str, array){
  */
 function finalCellVal(){
   if (arrayStartsWith(selectedCellVal, availableFunctions)){
-    console.log(selectedCellVal);
-    selectedCell.setCellValue("Function");
+    applyFunction();
+    selectedCellVal = "";
   }
   else if (selectedCellVal.startsWith("=")){
-    applyOperations();
+    applyOperation();
     selectedCellVal = "";
   }
   selectedCellVal = "";
@@ -260,18 +333,15 @@ function addListeners(){
     switch (key) {
       case "Enter":
         finalCellVal();
-        selectCellBelow();
+        selectCell(cols);
         break;
       case "Backspace":
-        selectedCellVal = selectedCellVal.slice(0, -1);
+        selectedCellVal = selectedCellVal.slice(0, -1); //Remove the last character
         selectedCell.setCellValue(selectedCellVal);
         break;
       case "Tab":
         finalCellVal();
-        let index = cells.indexOf(selectedCell);
-
-        selectedCell = cells[index+1];
-        selectedCell.highlight(ctx);
+        selectCell(1);
         break;
       case "Shift":
         break;

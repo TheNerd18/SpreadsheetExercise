@@ -2,13 +2,19 @@ export class Cell {
     constructor(x, y, width, height, letter, row) {
         this.x = x;
         this.y = y;
+
         this.width = width;
         this.height = height;
+
         this.value = "";
         this.row = row;
+        this.letter = letter;
         this.position = letter+row.toString();
+
         this.clickable = true;
+
         this.operation = "";
+        this.function = "";
     }
 
     drawCell(ctx) {
@@ -40,8 +46,10 @@ export class Cell {
     }
 
     setCellValue(value) {
-        this.value = value;
-        this.operation = "";
+        if(this.isClickable){
+            this.value = value;
+            this.operation = "";
+        }
     }
 
     getPosition(){
@@ -94,9 +102,52 @@ export class Cell {
         }
     }
 
+    applyFunction(cells, func){
+        let result = 0;
+        if (!this.validCells(cells)){
+            this.value = "Error";
+            return;
+        }
+
+        switch(func){
+            case "=sum(":
+                for (let i = 0; i < cells.length; i++){
+                    result += parseFloat(cells[i].value);
+                }
+                break;
+            case "=avg(":
+                for (let i = 0; i < cells.length; i++){
+                    result += parseFloat(cells[i].value);
+                }
+                result = result / cells.length;
+                break;
+            case "=min(":
+                result = Number.MAX_VALUE;
+                for (let i = 0; i < cells.length; i++){
+                    if (parseFloat(cells[i].value) < result){
+                        result = parseFloat(cells[i].value);
+                    }
+                }
+                break;
+            case "=max(":
+                result = Number.MIN_VALUE;
+                for (let i = 0; i < cells.length; i++){
+                    if (parseFloat(cells[i].value) > result){
+                        result = parseFloat(cells[i].value);
+                    }
+                }
+                break;
+        }
+        this.function = [cells, func];
+        this.value = result;
+    }
+
     updateCell(){
         if (this.operation != ""){
             this.applyOperation(this.operation[0], this.operation[1]);
+        }
+        else if (this.function != ""){
+            this.applyFunction(this.function[0], this.function[1]);
         }
     }
 }
